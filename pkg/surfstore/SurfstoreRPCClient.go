@@ -46,7 +46,7 @@ func (surfClient *RPCClient) PutBlock(block *Block, blockStoreAddr string, succ 
 	}
 	c := NewBlockStoreClient(conn)
 
-	fmt.Println("Hash string:", GetBlockHashString(block.GetBlockData()[0:block.GetBlockSize()]), " block size:", block.GetBlockSize(), " block len:", len(block.GetBlockData()))
+	//fmt.Println("Hash string:", GetBlockHashString(block.GetBlockData()[0:block.GetBlockSize()]), " block size:", block.GetBlockSize(), " block len:", len(block.GetBlockData()))
 	// perform the call
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
