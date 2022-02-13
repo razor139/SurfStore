@@ -29,16 +29,13 @@ func createFileHashList(path string, blockSize int) ([]string, map[string]*Block
 			break
 		}
 		hashString := GetBlockHashString(hash[:n])
-
-		fmt.Println("Hash :", hashString)
-		hashBlocks[hashString] = &Block{BlockData: hash[:n], BlockSize: int32(n)}
-		for key, value := range hashBlocks {
-			fmt.Println("for hash", key, "value:", value.BlockData, "address:", &value)
-		}
+		//fmt.Println("Hash :", hashString)
+		block := &Block{BlockData: []byte(string(hash[:n])), BlockSize: int32(n)}
+		hashBlocks[hashString] = block
 		//fmt.Println(hashBlocks)
 		hashList = append(hashList, hashString)
 	}
-	//fmt.Println(hashList)
+	//fmt.Println(hashBlocks)
 
 	// for key, value := range hashBlocks {
 	// 	fmt.Println("HAsh:", key, "block data:", value.GetBlockData()[:value.BlockSize])
@@ -125,7 +122,7 @@ func diffHashList(listA, listB []string) []string {
 }
 
 // Uploading to Server
-func uploadToRemote(client RPCClient, indexfileData *FileMetaData, remotefileData *FileMetaData, blockStoreAddr string) error {
+func uploadToRemote(client RPCClient, indexfileData *FileMetaData, remotefileData *FileMetaData, hashBlocks map[string]*Block, blockStoreAddr string) error {
 
 	indexHashList := indexfileData.BlockHashList
 	remoteHashList := remotefileData.GetBlockHashList()
@@ -141,12 +138,10 @@ func uploadToRemote(client RPCClient, indexfileData *FileMetaData, remotefileDat
 
 	hashToUpload := diffHashList(diffList, remoteHashSubList)
 
-	_, hashBlocks, _ := createFileHashList(ConcatPath(client.BaseDir, indexfileData.Filename), client.BlockSize)
-
 	for _, hash := range hashToUpload {
 		var succ bool
 		block := Block{BlockData: hashBlocks[hash].BlockData, BlockSize: hashBlocks[hash].BlockSize}
-		fmt.Println("Hash:", hash, "Block: ", string(hashBlocks[hash].BlockData))
+		//fmt.Println("Hash:", hash, "Block: ", string(hashBlocks[hash].BlockData))
 		err := client.PutBlock(&block, blockStoreAddr, &succ)
 		if err != nil {
 			fmt.Printf("Could not put block properly:%v\n", err)
@@ -184,13 +179,13 @@ func ClientSync(client RPCClient) {
 	localFileData := make(map[string]*FileMetaData)
 	for _, file := range files {
 		fileName := file.Name()
-		fmt.Println(fileName)
+		//fmt.Println(fileName)
 		if fileName == DEFAULT_META_FILENAME {
 			continue
 		}
 		path := filepath.Join(client.BaseDir, fileName)
 
-		fileHashList, _, _ := createFileHashList(path, client.BlockSize)
+		fileHashList, hashBlocks, _ := createFileHashList(path, client.BlockSize)
 
 		localFileData[fileName] = &FileMetaData{Filename: fileName, BlockHashList: fileHashList}
 		//PrintMetaMap(localFileData)
@@ -214,7 +209,7 @@ func ClientSync(client RPCClient) {
 				// Handle versions while uploading
 
 				localFileData[fileName].Version = localIndex[fileName].GetVersion() + 1
-				err := uploadToRemote(client, localFileData[fileName], remoteIndexMeta, blockStoreAddr)
+				err := uploadToRemote(client, localFileData[fileName], remoteIndexMeta, hashBlocks, blockStoreAddr)
 				if err != nil {
 					fmt.Printf("Could not upload:%v\n", err)
 					continue
@@ -248,7 +243,7 @@ func ClientSync(client RPCClient) {
 
 	// Handling locally deleted files
 	localDeletedFiles := diffIndex(localIndex, localFileData)
-	fmt.Println("Locally deleted", localDeletedFiles)
+	//fmt.Println("Locally deleted", localDeletedFiles)
 	// For every locally deleted file upload to server with tombstone record.
 	for _, deleteFile := range localDeletedFiles {
 		localIndexMeta := localIndex[deleteFile]
@@ -292,7 +287,7 @@ func ClientSync(client RPCClient) {
 
 	// Check if remote index has new files.
 	newRemoteFiles := diffIndex(remoteIndex, localIndex)
-	fmt.Println("New remote files:", newRemoteFiles)
+	//fmt.Println("New remote files:", newRemoteFiles)
 	// For every New Remote file just download and update local index.
 	for _, file := range newRemoteFiles {
 		remoteIndexMeta := remoteIndex[file]
@@ -304,6 +299,6 @@ func ClientSync(client RPCClient) {
 		localIndex[file] = remoteIndexMeta
 	}
 
-	PrintMetaMap(localIndex)
+	//PrintMetaMap(localIndex)
 	WriteMetaFile(localIndex, client.BaseDir)
 }
