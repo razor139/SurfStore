@@ -73,7 +73,7 @@ func diffIndex(indexA map[string]*FileMetaData, indexB map[string]*FileMetaData)
 func downloadFromRemote(client RPCClient, fileData *FileMetaData, blockStoreAddr string) error {
 
 	remoteFileHash := fileData.GetBlockHashList()
-	outputFilePath := ConcatPath(client.BaseDir, fileData.Filename)
+	outputFilePath, _ := filepath.Abs(ConcatPath(client.BaseDir, fileData.Filename))
 
 	if len(remoteFileHash) == 1 && remoteFileHash[0] == "0" {
 		os.Remove(outputFilePath)
@@ -183,31 +183,32 @@ func ClientSync(client RPCClient) {
 		if fileName == DEFAULT_META_FILENAME {
 			continue
 		}
-		path := filepath.Join(client.BaseDir, fileName)
+		path, _ := filepath.Abs(ConcatPath(client.BaseDir, fileName))
 
-		fileHashList, hashBlocks, _ := createFileHashList(path, client.BlockSize)
-
-		localFileData[fileName] = &FileMetaData{Filename: fileName, BlockHashList: fileHashList}
 		//PrintMetaMap(localFileData)
 		localIndexMeta := localIndex[fileName]
 		remoteIndexMeta := remoteIndex[fileName]
 
 		if remoteIndexMeta.GetVersion() > localIndexMeta.GetVersion() {
 			// Download and update local index map
+			//fmt.Println("downloading Changes in file:", fileName)
 			err := downloadFromRemote(client, remoteIndexMeta, blockStoreAddr)
 			if err != nil {
 				log.Printf("Could not download properly:%v\n", err)
 			}
 
 			localIndex[fileName] = remoteIndexMeta
-
+			localFileData[fileName] = remoteIndexMeta
 		} else {
+			fileHashList, hashBlocks, _ := createFileHashList(path, client.BlockSize)
+			localFileData[fileName] = &FileMetaData{Filename: fileName, BlockHashList: fileHashList}
+
 			localIndexHashList := localIndexMeta.GetBlockHashList()
 
 			if !reflect.DeepEqual(fileHashList, localIndexHashList) {
 				// Upload data to server, if version error then download the content and update local index
 				// Handle versions while uploading
-
+				//fmt.Println(" Changes in file:", fileName)
 				localFileData[fileName].Version = localIndex[fileName].GetVersion() + 1
 				err := uploadToRemote(client, localFileData[fileName], remoteIndexMeta, hashBlocks, blockStoreAddr)
 				if err != nil {
@@ -258,7 +259,7 @@ func ClientSync(client RPCClient) {
 
 			localIndex[deleteFile] = remoteIndexMeta
 
-		} else {
+		} else if !(len(localIndexMeta.BlockHashList) == 1 && localIndexMeta.BlockHashList[0] == "0") {
 			newVersion := localIndexMeta.Version + 1
 			deleteHashList := []string{"0"}
 			deleteFileData := FileMetaData{Filename: deleteFile, Version: newVersion, BlockHashList: deleteHashList}
@@ -279,7 +280,7 @@ func ClientSync(client RPCClient) {
 				localIndex[deleteFile] = remoteIndexMeta
 			} else {
 
-				localIndex[deleteFile] = &FileMetaData{Filename: deleteFile, Version: newVersion, BlockHashList: deleteHashList}
+				localIndex[deleteFile] = &deleteFileData
 			}
 		}
 

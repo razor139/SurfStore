@@ -3,10 +3,12 @@ package surfstore
 import (
 	context "context"
 	"fmt"
+	"sync"
 )
 
 type BlockStore struct {
 	BlockMap map[string]*Block
+	bsLock   sync.Mutex
 	UnimplementedBlockStoreServer
 }
 
@@ -21,8 +23,10 @@ func (bs *BlockStore) GetBlock(ctx context.Context, blockHash *BlockHash) (*Bloc
 
 func (bs *BlockStore) PutBlock(ctx context.Context, block *Block) (*Success, error) {
 	//panic("todo")
+	bs.bsLock.Lock()
+	defer bs.bsLock.Unlock()
 	hashString := GetBlockHashString(block.BlockData[0:block.BlockSize])
-	fmt.Println("Hash string:", hashString, " block size:", block.BlockSize, " block len:", len(block.BlockData))
+	//fmt.Println("Hash string:", hashString, " block size:", block.BlockSize, " block len:", len(block.BlockData))
 
 	if len(hashString) == 0 {
 		return &Success{Flag: false}, fmt.Errorf("Hash string not generated")
