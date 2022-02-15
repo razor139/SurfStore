@@ -80,7 +80,7 @@ func startServer(hostAddr string, serviceType string, blockStoreAddr string) err
 	server := grpc.NewServer()
 
 	if serviceType == "both" {
-		surfstore.RegisterMetaStoreServer(server, surfstore.NewMetaStore(blockStoreAddr))
+		surfstore.RegisterMetaStoreServer(server, surfstore.NewMetaStore(hostAddr))
 		surfstore.RegisterBlockStoreServer(server, surfstore.NewBlockStore())
 
 	} else if serviceType == "meta" {
